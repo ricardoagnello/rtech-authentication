@@ -35,6 +35,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   planId       String?
   plan         Plan?    @relation(fields: [planId], references: [id])
+  containerInstances ContainerInstance[]
 }
 
 model RefreshToken {
@@ -77,4 +78,18 @@ model Plan {
   priceQuarterly Float
   trialDays     Int
   users         User[]
+  containerInstances ContainerInstance[]
+}
+
+model ContainerInstance {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId      String
+  plan        Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  status      String   @default("pending") // pending, running, stopped, error
+  image       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

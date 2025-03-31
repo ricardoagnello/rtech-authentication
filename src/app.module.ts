@@ -6,6 +6,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { PlanModule } from './plan/plan.module';
+import { ContainerInstanceModule } from './container-instance/container-instance.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { PlanModule } from './plan/plan.module';
     PrismaModule,
     MailModule,
     PlanModule,
+    ContainerInstanceModule,
   ],
 })
 export class AppModule {}
