@@ -11,79 +11,121 @@ export class DockerService {
     this.docker = new Docker(); // Conexão com o Docker local (ou remoto)
   }
 
-  // Método para criar um container
-  async createContainer(name: string, image: string, cmd: string[], ports: string[]): Promise<Docker.Container> {
+  async createSwarmService(
+    name: string,
+    image: string,
+    cmd: string[],
+    ports: string[],
+    plan: string,
+    volumeNameApp: string,
+    volumeNameDb: string
+  ): Promise<any> {  // Changed return type to any to handle library typing issues
+    // Definir os recursos com base no plano
+    let cpu: number;
+    let memory: number;
+    let replicas: number;
+    let appVolumeSize: number;
+    let dbVolumeSize: number;
+
+    switch (plan) {
+      case 'basico':
+        cpu = 500000000;
+        memory = 512 * 1024 * 1024;
+        replicas = 1;
+        appVolumeSize = 1 * 1024 * 1024 * 1024;
+        dbVolumeSize = 1 * 1024 * 1024 * 1024;
+        break;
+      case 'semi_pro':
+        cpu = 1000000000;
+        memory = 1024 * 1024 * 1024;
+        replicas = 2;
+        appVolumeSize = 2 * 1024 * 1024 * 1024;
+        dbVolumeSize = 2 * 1024 * 1024 * 1024;
+        break;
+      case 'pro':
+        cpu = 2000000000;
+        memory = 2 * 1024 * 1024 * 1024;
+        replicas = 3;
+        appVolumeSize = 4 * 1024 * 1024 * 1024;
+        dbVolumeSize = 4 * 1024 * 1024 * 1024;
+        break;
+      default:
+        throw new BadRequestException('Plano inválido.');
+    }
+
+    const appVolume: any = {
+      Target: `/data/${volumeNameApp}`,
+      Source: volumeNameApp,
+      Type: 'volume',
+    };
+
+    const dbVolume: any = {
+      Target: `/data/${volumeNameDb}`,
+      Source: volumeNameDb,
+      Type: 'volume',
+    };
+
     try {
-      const container = await this.docker.createContainer({
-        name: name,
-        Image: image,
-        Cmd: cmd,
-        ExposedPorts: ports.reduce((acc, port) => ({ ...acc, [`${port}/tcp`]: {} }), {}),
-        HostConfig: {
-          PortBindings: ports.reduce((acc, port) => ({
-            ...acc,
-            [`${port}/tcp`]: [{ HostPort: port }],
-          }), {}),
+      const service = await this.docker.createService({
+        Name: name,
+        TaskTemplate: {
+          ContainerSpec: {
+            Image: image,
+            Command: cmd,  // Changed from Cmd to Command which is the correct property name
+            Mounts: [appVolume, dbVolume],
+          },
+          Resources: {
+            Limits: {
+              MemoryBytes: memory,
+              NanoCPUs: cpu,
+            },
+          },
+        },
+        EndpointSpec: {
+          Ports: ports.map((port) => ({
+            PublishedPort: parseInt(port),
+            TargetPort: parseInt(port),
+          })),
+        },
+        Mode: {
+          Replicated: {
+            Replicas: replicas,
+          },
         },
       });
-      return container;
+
+      return service;
     } catch (error) {
-      this.logger.error('Erro ao criar o container: ', error);
-      throw error;
+      this.logger.error('Erro ao criar o serviço no Swarm: ', error);
+      throw new BadRequestException('Erro ao criar o serviço no Docker Swarm');
     }
   }
 
-  // Método para iniciar o container
-  async startContainer(container: Docker.Container): Promise<void> {
+  // Método para escalar um serviço no Swarm (alterar o número de réplicas)
+  async scaleService(serviceName: string, replicas: number): Promise<void> {
     try {
-      await container.start();
+      const service = this.docker.getService(serviceName);
+      await service.update({
+        Mode: {
+          Replicated: {
+            Replicas: replicas,
+          },
+        },
+      });
     } catch (error) {
-      this.logger.error('Erro ao iniciar o container: ', error);
-      throw error;
+      this.logger.error('Erro ao escalar o serviço no Swarm: ', error);
+      throw new BadRequestException('Erro ao escalar o serviço no Docker Swarm');
     }
   }
 
-  // Método para parar o container
-  async stopContainer(containerName: string): Promise<void> {
+  // Método para remover o serviço no Swarm
+  async removeSwarmService(serviceName: string): Promise<void> {
     try {
-      const container = this.docker.getContainer(containerName);
-  
-      if (!container) {
-        throw new NotFoundException(`Container '${containerName}' não encontrado.`);
-      }
-  
-      await container.stop();
+      const service = this.docker.getService(serviceName);
+      await service.remove();
     } catch (error) {
-      console.error(`Erro ao parar o container '${containerName}':`, error.message);
-  
-      throw new BadRequestException(`Não foi possível parar o container: ${error.message}`);
-    }
-  }
-  
-
-  // Método para obter o objeto de container do Docker pelo ID
-  async getContainerById(containerId: string): Promise<any> {
-    try {
-      const container = this.docker.getContainer(containerId);
-      if (!container) {
-        throw new NotFoundException(`Container com ID ${containerId} não encontrado.`);
-      }
-      return container;
-    } catch (error) {
-      console.error(`Erro ao buscar container ${containerId}:`, error.message);
-      throw new Error(`Falha ao obter container: ${error.message}`);
-    }
-  }
-  
-
-  async removeContainer(containerName: string): Promise<void> {
-    try {
-      const container = this.docker.getContainer(containerName);
-      await container.remove();
-      console.log(`Container ${containerName} removido com sucesso.`);
-    } catch (error) {
-      console.error(`Erro ao remover o container ${containerName}:`, error.message);
-      throw new Error(`Falha ao remover container: ${error.message}`);
+      this.logger.error('Erro ao remover o serviço no Swarm: ', error);
+      throw new BadRequestException('Erro ao remover o serviço no Docker Swarm');
     }
   }
 }

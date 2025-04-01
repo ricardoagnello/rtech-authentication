@@ -5,7 +5,7 @@ import { UpdatePlanDto } from './dto/update-plan.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('plans')
-export class PlansController {
+export class PlanController {
   constructor(private readonly plansService: PlanService) {}
 
   // Criar um novo plano
