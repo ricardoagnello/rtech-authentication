@@ -1,13 +1,16 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as Docker from 'dockerode';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 
 @Injectable()
 export class DockerService {
   private readonly docker: Docker;
   private readonly logger = new Logger(DockerService.name);
+  private readonly prisma: PrismaService;
 
-  constructor() {
+  constructor(prismaService: PrismaService) {
+    this.prisma = prismaService;
     this.docker = new Docker(); // Conexão com o Docker local (ou remoto)
   }
 
@@ -26,9 +29,13 @@ export class DockerService {
     let replicas: number;
     let appVolumeSize: number;
     let dbVolumeSize: number;
+    let appVolumeLimit: number;
+    let dbVolumeLimit: number;
 
     switch (plan) {
       case 'basico':
+        appVolumeLimit = 1 * 1024 * 1024 * 1024; // 1 GB
+        dbVolumeLimit = 1 * 1024 * 1024 * 1024;
         cpu = 500000000;
         memory = 512 * 1024 * 1024;
         replicas = 1;
@@ -36,6 +43,8 @@ export class DockerService {
         dbVolumeSize = 1 * 1024 * 1024 * 1024;
         break;
       case 'semi_pro':
+        appVolumeLimit = 2 * 1024 * 1024 * 1024; // 2 GB
+        dbVolumeLimit = 2 * 1024 * 1024 * 1024; 
         cpu = 1000000000;
         memory = 1024 * 1024 * 1024;
         replicas = 2;
@@ -43,6 +52,8 @@ export class DockerService {
         dbVolumeSize = 2 * 1024 * 1024 * 1024;
         break;
       case 'pro':
+        appVolumeLimit = 4 * 1024 * 1024 * 1024; // 4 GB
+        dbVolumeLimit = 4 * 1024 * 1024 * 1024;
         cpu = 2000000000;
         memory = 2 * 1024 * 1024 * 1024;
         replicas = 3;
@@ -51,6 +62,14 @@ export class DockerService {
         break;
       default:
         throw new BadRequestException('Plano inválido.');
+    }
+
+    if (appVolumeSize > appVolumeLimit) {
+      throw new BadRequestException(`O volume do aplicativo excede o limite de tamanho do plano. Limite: ${appVolumeLimit / (1024 * 1024 * 1024)} GB.`);
+    }
+    
+    if (dbVolumeSize > dbVolumeLimit) {
+      throw new BadRequestException(`O volume do banco de dados excede o limite de tamanho do plano. Limite: ${dbVolumeLimit / (1024 * 1024 * 1024)} GB.`);
     }
 
     const appVolume: any = {
@@ -128,4 +147,26 @@ export class DockerService {
       throw new BadRequestException('Erro ao remover o serviço no Docker Swarm');
     }
   }
+
+  async restartContainer(containerId: string): Promise<void> {
+    const container = await this.prisma.containerInstance.findUnique({
+      where: { id: containerId },
+    });
+  
+    if (!container) {
+      throw new NotFoundException('Container não encontrado.');
+    }
+  
+    try {
+      // Usando Dockerode para reiniciar o contêiner
+      const dockerContainer = this.docker.getContainer(containerId);
+      await dockerContainer.restart();  // Reinicia o contêiner
+    } catch (error) {
+      this.logger.error('Erro ao reiniciar o container: ', error);
+      throw new BadRequestException('Erro ao reiniciar o container');
+    }
+  }
+  
 }
+  
+      

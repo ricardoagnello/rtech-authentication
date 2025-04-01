@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PlanModule } from './plan/plan.module';
 import { ContainerInstanceModule } from './container-instance/container-instance.module';
 import { DockerService } from './docker/docker.service';
+import { ContainerMonitorService } from './container-monitor/container-monitor.service';
 
 @Module({
   imports: [
@@ -23,6 +24,6 @@ import { DockerService } from './docker/docker.service';
     PlanModule,
     ContainerInstanceModule,
   ],
-  providers: [DockerService],
+  providers: [DockerService, ContainerMonitorService],
 })
 export class AppModule {}
