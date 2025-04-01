@@ -101,4 +101,73 @@ export class ContainerService {
       data: { status: 'stopped' },
     });
   }
+
+  async deleteContainer(containerId: string, userId: string): Promise<{ message: string }> {
+    // 1️⃣ Verifica se o container existe no banco de dados
+    const container = await this.prisma.containerInstance.findUnique({
+      where: { id: containerId },
+    });
+  
+    if (!container || container.userId !== userId) {
+      throw new NotFoundException('Container não encontrado ou acesso negado.');
+    }
+  
+    // 2️⃣ Chama o DockerService para parar e remover o container do Docker
+    try {
+      await this.dockerService.stopContainer(container.name);
+      await this.dockerService.removeContainer(container.name);
+    } catch (error) {
+      throw new BadRequestException(`Erro ao remover container no Docker: ${error.message}`);
+    }
+  
+    // 3️⃣ Remove o container do banco de dados
+    await this.prisma.containerInstance.delete({
+      where: { id: containerId },
+    });
+  
+    // 4️⃣ Retorna resposta de sucesso
+    return { message: 'Container removido com sucesso' };
+  }
+
+  async getContainerById(containerId: string): Promise<any> {
+    try {
+      const container = await this.prisma.containerInstance.findUnique({
+        where: { id: containerId },
+      });
+  
+      if (!container) {
+        throw new NotFoundException('Container não encontrado');
+      }
+  
+      return container;
+    } catch (error) {
+      throw new BadRequestException('Erro ao buscar container');
+    }
+  }
+
+  // Método para remover um container
+  async removeContainer(containerId: string): Promise<void> {
+    // Verifica se o container existe no banco de dados
+    const container = await this.prisma.containerInstance.findUnique({
+      where: { id: containerId },
+    });
+
+    if (!container) {
+      throw new NotFoundException('Container não encontrado.');
+    }
+
+    // Remove o container do Docker
+    try {
+      await this.dockerService.removeContainer(containerId); // Chama o método do DockerService
+    } catch (error) {
+      throw new BadRequestException('Erro ao remover o container no Docker.');
+    }
+
+    // Remove o container do banco de dados
+    await this.prisma.containerInstance.delete({
+      where: { id: containerId },
+    });
+  }
 }
+  
+  

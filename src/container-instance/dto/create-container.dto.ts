@@ -11,11 +11,15 @@ export class CreateContainerDto {
 
   @IsString()
   @IsNotEmpty()
+  userId: string;
+
+  @IsString()
+  @IsNotEmpty()
   planId: string;
 
   @IsString()
   @IsNotEmpty()
-  type: string;
+  type: 'app' | 'db';
 
   @IsString()
   @IsNotEmpty()

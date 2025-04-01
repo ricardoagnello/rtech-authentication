@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as Docker from 'dockerode';
 
 
@@ -44,18 +44,46 @@ export class DockerService {
   }
 
   // Método para parar o container
-  async stopContainer(container: Docker.Container): Promise<void> {
+  async stopContainer(containerName: string): Promise<void> {
     try {
+      const container = this.docker.getContainer(containerName);
+  
+      if (!container) {
+        throw new NotFoundException(`Container '${containerName}' não encontrado.`);
+      }
+  
       await container.stop();
     } catch (error) {
-      this.logger.error('Erro ao parar o container: ', error);
-      throw error;
+      console.error(`Erro ao parar o container '${containerName}':`, error.message);
+  
+      throw new BadRequestException(`Não foi possível parar o container: ${error.message}`);
     }
   }
+  
 
   // Método para obter o objeto de container do Docker pelo ID
   async getContainerById(containerId: string): Promise<any> {
-    const container = this.docker.getContainer(containerId);
-    return container;
+    try {
+      const container = this.docker.getContainer(containerId);
+      if (!container) {
+        throw new NotFoundException(`Container com ID ${containerId} não encontrado.`);
+      }
+      return container;
+    } catch (error) {
+      console.error(`Erro ao buscar container ${containerId}:`, error.message);
+      throw new Error(`Falha ao obter container: ${error.message}`);
+    }
+  }
+  
+
+  async removeContainer(containerName: string): Promise<void> {
+    try {
+      const container = this.docker.getContainer(containerName);
+      await container.remove();
+      console.log(`Container ${containerName} removido com sucesso.`);
+    } catch (error) {
+      console.error(`Erro ao remover o container ${containerName}:`, error.message);
+      throw new Error(`Falha ao remover container: ${error.message}`);
+    }
   }
 }
