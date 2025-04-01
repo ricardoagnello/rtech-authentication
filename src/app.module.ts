@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { PlanModule } from './plan/plan.module';
 import { ContainerInstanceModule } from './container-instance/container-instance.module';
+import { DockerService } from './docker/docker.service';
 
 @Module({
   imports: [
@@ -22,5 +23,6 @@ import { ContainerInstanceModule } from './container-instance/container-instance
     PlanModule,
     ContainerInstanceModule,
   ],
+  providers: [DockerService],
 })
 export class AppModule {}

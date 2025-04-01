@@ -15,5 +15,9 @@ export class CreateContainerDto {
 
   @IsString()
   @IsNotEmpty()
+  type: string;
+
+  @IsString()
+  @IsNotEmpty()
   image: string;
 }

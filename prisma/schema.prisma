@@ -72,6 +72,8 @@ model Plan {
   ram           Int
   apps          Int
   databases     Int
+  maxApps Int
+  maxDatabases Int
   storageApp    Int
   storageDB     Int
   priceMonthly  Float
@@ -90,6 +92,7 @@ model ContainerInstance {
   plan        Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
   status      String   @default("pending") // pending, running, stopped, error
   image       String
+  type String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

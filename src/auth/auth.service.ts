@@ -15,7 +15,6 @@ import {
   import { MailService } from '../mail/mail.service';
   import { SignUpDto } from './dto/sign-up.dto';
   import { SignInDto } from './dto/sign-in.dto';
-  import * as dayjs from 'dayjs'; 
   
   @Injectable()
   export class AuthService {
