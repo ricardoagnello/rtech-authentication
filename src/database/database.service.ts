@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DockerService } from 'src/docker/docker.service';
+import { LogsGateway } from 'src/logs/logs.gateway';
 
 @Injectable()
 export class DatabaseService {
@@ -9,6 +10,7 @@ export class DatabaseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly dockerService: DockerService,
+    private readonly logsGateway: LogsGateway,
   ) {}
 
   async createDatabase(
@@ -16,6 +18,7 @@ export class DatabaseService {
     planId: string,
     dbType: 'mysql' | 'postgresql' | 'mongodb',
   ): Promise<{ message: string; credentials: any }> {
+    this.logsGateway.sendLog(userId, `Criando banco de dados do tipo ${dbType}...`);
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) {
       throw new BadRequestException('Plano não encontrado.');
@@ -50,9 +53,11 @@ export class DatabaseService {
     }
   
     try {
+      this.logsGateway.sendLog(userId, `Criando volume para o banco ${dbType}...`);
       // Garante que o volume exista antes de criar o serviço
       await this.dockerService.ensureVolumeExists(volumeNameDb);
-  
+      
+      this.logsGateway.sendLog(userId, `Criando serviço Docker Swarm para ${dbType}...`);
       await this.dockerService.createSwarmService(
         serviceName,
         image,
@@ -82,7 +87,8 @@ export class DatabaseService {
           : `DB_HOST=${serviceName}\nDB_PORT=${port}\nDB_USERNAME=${credentials.username}\nDB_PASSWORD=${credentials.password}\nDB_NAME=${userId}_db`;
   
       this.saveEnvFile(envFileContent, userId);
-  
+      
+      this.logsGateway.sendLog(userId, `Banco ${dbType} criado com sucesso!`);
       return { message: 'Banco de dados criado com sucesso!', credentials };
     } catch (error) {
       this.logger.error('Erro ao criar o banco de dados: ', error);
@@ -117,10 +123,11 @@ export class DatabaseService {
     if (!db) {
       throw new BadRequestException('Banco de dados não encontrado.');
     }
-
+    this.logsGateway.sendLog(userId, `Removendo banco de dados ${db.dbType}...`);
     await this.dockerService.removeSwarmService(`${userId}-${db.dbType}-db`);
     await this.prisma.database.deleteMany({ where: { userId } });
     
+    this.logsGateway.sendLog(userId, `Banco de dados ${db.dbType} removido com sucesso.`);
     this.logger.log('Banco de dados excluído com sucesso.');
   }
 

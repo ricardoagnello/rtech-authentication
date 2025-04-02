@@ -14,6 +14,8 @@ import { RepositoryModule } from './repository/repository.module';
 import { StackDetectorModule } from './stack-detector/stack-detector.module';
 import { DockerFileModule } from './docker-file/docker-file.module';
 import { DeployModule } from './deploy/deploy.module';
+import { LogsModule } from './logs/logs.module';
+import { DeployService } from './deploy/deploy.service';
 
 
 
@@ -35,8 +37,9 @@ import { DeployModule } from './deploy/deploy.module';
     StackDetectorModule,
     DockerFileModule,
     DeployModule,
+    LogsModule,
     
   ],
-  providers: [DockerService, ContainerMonitorService],
+  providers: [DockerService, ContainerMonitorService, DeployService],
 })
 export class AppModule {}
