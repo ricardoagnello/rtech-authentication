@@ -66,13 +66,17 @@ export class DatabaseService {
           dbType,
           host: 'localhost',
           port,
-          username: dbType === 'mongodb' ? '' : credentials.username, // MongoDB usa autenticação diferente
+          username: dbType === 'mongodb' ? 'admin' : credentials.username, // MongoDB usa autenticação diferente
           password: credentials.password,
           dbName: `${userId}_db`,
         },
       });
 
-      const envFileContent = `DB_HOST=localhost\nDB_PORT=${port}\nDB_USERNAME=${dbType === 'mongodb' ? '' : credentials.username}\nDB_PASSWORD=${credentials.password}\nDB_NAME=${userId}_db`;
+      const envFileContent =
+        dbType === 'mongodb'
+        ? `MONGO_URI=mongodb://admin:${credentials.password}@localhost:${port}/${userId}_db?authSource=admin`
+        : `DB_HOST=localhost\nDB_PORT=${port}\nDB_USERNAME=${credentials.username}\nDB_PASSWORD=${credentials.password}\nDB_NAME=${userId}_db`;
+
       this.saveEnvFile(envFileContent, userId);
 
       return { message: 'Banco de dados criado com sucesso!', credentials };
