@@ -10,6 +10,7 @@ import { ContainerInstanceModule } from './container-instance/container-instance
 import { DockerService } from './docker/docker.service';
 import { ContainerMonitorService } from './container-monitor/container-monitor.service';
 import { DatabaseModule } from './database/database.module';
+import { RepositoryModule } from './repository/repository.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { DatabaseModule } from './database/database.module';
     PlanModule,
     ContainerInstanceModule,
     DatabaseModule,
+    RepositoryModule,
   ],
   providers: [DockerService, ContainerMonitorService],
 })
