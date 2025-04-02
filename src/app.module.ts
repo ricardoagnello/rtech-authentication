@@ -12,6 +12,9 @@ import { ContainerMonitorService } from './container-monitor/container-monitor.s
 import { DatabaseModule } from './database/database.module';
 import { RepositoryModule } from './repository/repository.module';
 import { StackDetectorModule } from './stack-detector/stack-detector.module';
+import { DockerFileModule } from './docker-file/docker-file.module';
+
+
 
 @Module({
   imports: [
@@ -29,6 +32,8 @@ import { StackDetectorModule } from './stack-detector/stack-detector.module';
     DatabaseModule,
     RepositoryModule,
     StackDetectorModule,
+    DockerFileModule,
+    
   ],
   providers: [DockerService, ContainerMonitorService],
 })

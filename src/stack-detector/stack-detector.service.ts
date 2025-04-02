@@ -37,7 +37,7 @@ export class StackDetectorService {
     throw new Error('Stack não identificada.');
   }
 
-  private detectStackFromDockerfile(dockerfilePath: string): string {
+  public detectStackFromDockerfile(dockerfilePath: string): string {
     const dockerfileContent = fs.readFileSync(dockerfilePath, 'utf-8').toLowerCase();
 
     if (dockerfileContent.includes('node')) return 'node';
