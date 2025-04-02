@@ -37,6 +37,7 @@ model User {
   plan         Plan?    @relation(fields: [planId], references: [id])
   containerInstances ContainerInstance[]
   databases    Database[]
+  deployments Deployment[]
 }
 
 model RefreshToken {
@@ -113,4 +114,19 @@ model Database {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
 }
+
+model Deployment {
+  id          String  @id @default(uuid()) 
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceName String  @unique
+  imageName   String
+  repoUrl     String
+  stack       String
+  envVars     Json
+  status      String  @default("running")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 

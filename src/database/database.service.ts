@@ -15,19 +15,20 @@ export class DatabaseService {
     userId: string,
     planId: string,
     dbType: 'mysql' | 'postgresql' | 'mongodb',
-  ): Promise<{ message: string, credentials: any }> {
+  ): Promise<{ message: string; credentials: any }> {
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) {
       throw new BadRequestException('Plano não encontrado.');
     }
-
+  
     const credentials = this.generateDatabaseCredentials();
-    const volumeName = `db-volume-${userId}-${dbType}`;
-    
+    const volumeNameDb = `db-volume-${userId}-${dbType}`;
+    const serviceName = `${userId}-${dbType}-db`;
+  
     let cmd: string[];
     let port: number;
     let image: string;
-
+  
     switch (dbType) {
       case 'mysql':
         cmd = ['docker-entrypoint.sh', 'mysqld'];
@@ -47,44 +48,48 @@ export class DatabaseService {
       default:
         throw new BadRequestException('Tipo de banco de dados inválido.');
     }
-
+  
     try {
+      // Garante que o volume exista antes de criar o serviço
+      await this.dockerService.ensureVolumeExists(volumeNameDb);
+  
       await this.dockerService.createSwarmService(
-        `${userId}-${dbType}-db`,
+        serviceName,
         image,
         cmd,
         [port.toString()],
         plan.name.toLowerCase(),
-        volumeName,
-        volumeName,
+        volumeNameDb, // Passando apenas o volume do banco corretamente
+        volumeNameDb, 
       );
-
+  
       await this.prisma.database.create({
         data: {
           userId,
           planId,
           dbType,
-          host: 'localhost',
+          host: serviceName, // Nome do serviço, e não localhost
           port,
-          username: dbType === 'mongodb' ? 'admin' : credentials.username, // MongoDB usa autenticação diferente
+          username: dbType === 'mongodb' ? 'admin' : credentials.username,
           password: credentials.password,
           dbName: `${userId}_db`,
         },
       });
-
+  
       const envFileContent =
         dbType === 'mongodb'
-        ? `MONGO_URI=mongodb://admin:${credentials.password}@localhost:${port}/${userId}_db?authSource=admin`
-        : `DB_HOST=localhost\nDB_PORT=${port}\nDB_USERNAME=${credentials.username}\nDB_PASSWORD=${credentials.password}\nDB_NAME=${userId}_db`;
-
+          ? `MONGO_URI=mongodb://admin:${credentials.password}@${serviceName}:${port}/${userId}_db?authSource=admin`
+          : `DB_HOST=${serviceName}\nDB_PORT=${port}\nDB_USERNAME=${credentials.username}\nDB_PASSWORD=${credentials.password}\nDB_NAME=${userId}_db`;
+  
       this.saveEnvFile(envFileContent, userId);
-
+  
       return { message: 'Banco de dados criado com sucesso!', credentials };
     } catch (error) {
       this.logger.error('Erro ao criar o banco de dados: ', error);
       throw new BadRequestException('Erro ao criar o banco de dados no Docker Swarm');
     }
   }
+  
 
   async getDatabaseCredentials(userId: string) {
     const db = await this.prisma.database.findFirst({ where: { userId } });

@@ -9,7 +9,12 @@ export class PlanService {
 
   // Criação de plano
   async create(createPlanDto: CreatePlanDto) {
-    return this.prisma.plan.create({ data: createPlanDto });
+    return this.prisma.plan.create({
+      data: {
+        ...createPlanDto,
+        databases: { create: Array(createPlanDto.databases).fill({}) }, // Adjust mapping as needed
+      },
+    });
   }
 
   // Listar todos os planos
@@ -24,7 +29,16 @@ export class PlanService {
 
   // Atualizar plano
   async update(id: string, updatePlanDto: UpdatePlanDto) {
-    return this.prisma.plan.update({ where: { id }, data: updatePlanDto });
+    const { databases, ...rest } = updatePlanDto;
+    return this.prisma.plan.update({
+      where: { id },
+      data: {
+        ...rest,
+        databases: databases
+          ? { create: Array(databases).fill({}) } // Adjust mapping as needed
+          : undefined,
+      },
+    });
   }
 
   // Remover plano

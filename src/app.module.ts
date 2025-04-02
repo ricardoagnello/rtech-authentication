@@ -13,6 +13,7 @@ import { DatabaseModule } from './database/database.module';
 import { RepositoryModule } from './repository/repository.module';
 import { StackDetectorModule } from './stack-detector/stack-detector.module';
 import { DockerFileModule } from './docker-file/docker-file.module';
+import { DeployModule } from './deploy/deploy.module';
 
 
 
@@ -33,6 +34,7 @@ import { DockerFileModule } from './docker-file/docker-file.module';
     RepositoryModule,
     StackDetectorModule,
     DockerFileModule,
+    DeployModule,
     
   ],
   providers: [DockerService, ContainerMonitorService],

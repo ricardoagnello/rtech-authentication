@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as Docker from 'dockerode';
 import { PrismaService } from 'src/prisma/prisma.service';
+import * as tar from 'tar-fs';
+
 
 
 @Injectable()
@@ -44,7 +46,7 @@ export class DockerService {
         break;
       case 'semi_pro':
         appVolumeLimit = 2 * 1024 * 1024 * 1024; // 2 GB
-        dbVolumeLimit = 2 * 1024 * 1024 * 1024; 
+        dbVolumeLimit = 2 * 1024 * 1024 * 1024;
         cpu = 1000000000;
         memory = 1024 * 1024 * 1024;
         replicas = 2;
@@ -67,7 +69,7 @@ export class DockerService {
     if (appVolumeSize > appVolumeLimit) {
       throw new BadRequestException(`O volume do aplicativo excede o limite de tamanho do plano. Limite: ${appVolumeLimit / (1024 * 1024 * 1024)} GB.`);
     }
-    
+
     if (dbVolumeSize > dbVolumeLimit) {
       throw new BadRequestException(`O volume do banco de dados excede o limite de tamanho do plano. Limite: ${dbVolumeLimit / (1024 * 1024 * 1024)} GB.`);
     }
@@ -120,6 +122,26 @@ export class DockerService {
     }
   }
 
+  async ensureVolumeExists(volumeName: string): Promise<void> {
+    try {
+      // Verifica se o volume já existe
+      const volumes = await this.docker.listVolumes();
+      const volumeExists = volumes.Volumes?.some(v => v.Name === volumeName);
+
+      if (!volumeExists) {
+        // Cria o volume caso não exista
+        await this.docker.createVolume({ Name: volumeName });
+        this.logger.log(`Volume ${volumeName} criado.`);
+      } else {
+        this.logger.log(`Volume ${volumeName} já existe.`);
+      }
+    } catch (error) {
+      this.logger.error(`Erro ao verificar/criar volume ${volumeName}:`, error);
+      throw new BadRequestException(`Erro ao verificar/criar volume ${volumeName}`);
+    }
+  }
+
+
   // Método para escalar um serviço no Swarm (alterar o número de réplicas)
   async scaleService(serviceName: string, replicas: number): Promise<void> {
     try {
@@ -152,11 +174,11 @@ export class DockerService {
     const container = await this.prisma.containerInstance.findUnique({
       where: { id: containerId },
     });
-  
+
     if (!container) {
       throw new NotFoundException('Container não encontrado.');
     }
-  
+
     try {
       // Usando Dockerode para reiniciar o contêiner
       const dockerContainer = this.docker.getContainer(containerId);
@@ -166,7 +188,38 @@ export class DockerService {
       throw new BadRequestException('Erro ao reiniciar o container');
     }
   }
-  
+
+  async buildImage(repoPath: string, imageName: string): Promise<void> {
+    try {
+      const tarStream = tar.pack(repoPath);
+
+      await this.docker.buildImage(tarStream, {
+        t: imageName,
+      });
+
+      this.logger.log(`Imagem ${imageName} construída com sucesso.`);
+    } catch (error) {
+      this.logger.error(`Erro ao construir a imagem ${imageName}:`, error);
+      throw new BadRequestException(`Erro ao construir a imagem.`);
+    }
+  }
+
+  async stopContainer(containerName: string) {
+    try {
+      const container = this.docker.getContainer(containerName);
+      if (!container) {
+        throw new Error(`Contêiner ${containerName} não encontrado.`);
+      }
+
+      await container.stop();
+      this.logger.log(`Contêiner ${containerName} parado com sucesso.`);
+    } catch (error) {
+      this.logger.error(`Erro ao parar contêiner ${containerName}:`, error);
+      throw new Error(`Erro ao parar contêiner: ${error.message}`);
+    }
+  }
+
+
 }
-  
-      
+
+

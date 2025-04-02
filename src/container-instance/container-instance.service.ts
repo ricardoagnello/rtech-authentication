@@ -19,40 +19,25 @@ export class ContainerService {
     userId: string, 
     planId: string
   ): Promise<ContainerResponseDto> {
-    // Verificando se o usuário e o plano existem
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado.');
-    }
-
-    const plan = await this.prisma.plan.findUnique({
-      where: { id: planId },
-    });
-
-    if (!plan) {
-      throw new NotFoundException('Plano não encontrado.');
-    }
-
-    // Contando apps e bancos de dados do usuário
-    const appCount = await this.prisma.containerInstance.count({
-      where: { userId, type: 'app' },
-    });
-
-    const dbCount = await this.prisma.containerInstance.count({
-      where: { userId, type: 'db' },
-    });
-
-    if (appCount >= plan.maxApps) {
+    // Verifica se o usuário e o plano existem
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado.');
+  
+    const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
+    if (!plan) throw new NotFoundException('Plano não encontrado.');
+  
+    // Verifica se o usuário já atingiu os limites do plano
+    const appCount = await this.prisma.containerInstance.count({ where: { userId, type: 'app' } });
+    const dbCount = await this.prisma.containerInstance.count({ where: { userId, type: 'db' } });
+  
+    if (data.type === 'app' && appCount >= plan.maxApps) {
       throw new BadRequestException('Limite de aplicativos atingido para o seu plano.');
     }
-
-    if (dbCount >= plan.maxDatabases) {
+  
+    if (data.type === 'db' && dbCount >= plan.maxDatabases) {
       throw new BadRequestException('Limite de bancos de dados atingido para o seu plano.');
     }
-
+  
     // Cria o container no banco de dados
     const container = await this.prisma.containerInstance.create({
       data: {
@@ -60,50 +45,47 @@ export class ContainerService {
         image: data.image,
         status: 'created',
         type: data.type, // Tipo de container: 'app' ou 'db'
-        user: {
-          connect: {
-            id: userId,
-          },
-        },
-        plan: {
-          connect: {
-            id: planId,
-          },
-        },
+        user: { connect: { id: userId } },
+        plan: { connect: { id: planId } },
       },
     });
-
-    // Determinar o nome do volume do app e do DB
+  
+    // Define nomes dos volumes
     const volumeNameApp = `app-volume-${container.id}`;
     const volumeNameDb = `db-volume-${container.id}`;
-
-    // Criar o serviço no Docker Swarm
-    const cmd = data.type === 'app' ? ['npm', 'start'] : ['some-db-start-command']; // Exemplo de comando
-    const ports = ['3000']; // Definir os ports dependendo do tipo de container
-
+  
+    // Garante que os volumes existam antes de criar o serviço no Docker Swarm
+    await this.dockerService.ensureVolumeExists(volumeNameApp);
+    await this.dockerService.ensureVolumeExists(volumeNameDb);
+  
+    // Define comandos e portas dependendo do tipo de container
+    const cmd = data.type === 'app' ? ['npm', 'start'] : ['some-db-start-command'];
+    const ports = data.type === 'app' ? ['3000'] : ['5432']; // Exemplo para PostgreSQL
+  
     try {
       const service = await this.dockerService.createSwarmService(
         container.name, 
         container.image, 
         cmd, 
         ports, 
-        plan.name.toLowerCase(),  // Enviar o plano como string para o DockerService
+        plan.name.toLowerCase(), // Nome do plano como string
         volumeNameApp, 
         volumeNameDb
       );
-
+  
       // Atualiza o status do container para "running" no banco de dados
       await this.prisma.containerInstance.update({
         where: { id: container.id },
         data: { status: 'running' },
       });
-
+  
       return plainToInstance(ContainerResponseDto, container, { excludeExtraneousValues: true });
     } catch (error) {
-      this.logger.error('Erro ao criar o serviço no Swarm: ', error);
+      this.logger.error('Erro ao criar o serviço no Swarm:', error);
       throw new BadRequestException('Erro ao criar o serviço no Docker Swarm');
     }
   }
+  
 
   async stopContainer(containerId: string): Promise<void> {
     const container = await this.prisma.containerInstance.findUnique({
