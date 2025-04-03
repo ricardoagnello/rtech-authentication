@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { Pool } from 'pg';
 import { createConnection } from 'mysql2/promise';
-import { MongoClient } from 'mongodb';
 
 @Injectable()
 export class DatabaseAuthService {
@@ -14,7 +13,7 @@ export class DatabaseAuthService {
     port: Number(process.env.POSTGRES_PORT),
   });
 
-  async createTempUser(dbType: 'postgres' | 'mysql' | 'mongo') {
+  async createTempUser(dbType: 'postgres' | 'mysql') {
     const tempUser = `temp_${randomBytes(3).toString('hex')}`;
     const tempPass = randomBytes(6).toString('hex');
 
@@ -38,27 +37,13 @@ export class DatabaseAuthService {
       await mysqlConn.end();
     }
 
-    if (dbType === 'mongo') {
-        const mongoClient = new MongoClient(process.env.MONGO_URI!);
-        await mongoClient.connect();
-      
-        const db = mongoClient.db(process.env.MONGO_DB!);
-      
-        await db.command({
-          createUser: tempUser,
-          pwd: tempPass,
-          roles: [{ role: 'readWrite', db: process.env.MONGO_DB! }],
-        });
-      
-        await mongoClient.close();
-      }
-      
-      const adminerUrl = `http://localhost:8080/?server=${dbType}&username=${tempUser}&db=${process.env[`${dbType.toUpperCase()}_DB`]}`;
-      
-      return { username: tempUser, password: tempPass, adminerUrl };
-    }      
+    // URLs ajustadas
+    const dbUrl = `http://localhost:8082/?server=${dbType}&username=${tempUser}&db=${process.env[`${dbType.toUpperCase()}_DB`]}`; // Adminer na nova porta
 
-  async deleteTempUser(dbType: 'postgres' | 'mysql' | 'mongo', tempUser: string) {
+    return { username: tempUser, password: tempPass, dbUrl };
+  }
+
+  async deleteTempUser(dbType: 'postgres' | 'mysql', tempUser: string) {
     if (dbType === 'postgres') {
       await this.pgPool.query(`DROP USER IF EXISTS ${tempUser};`);
     }
@@ -72,14 +57,6 @@ export class DatabaseAuthService {
       });
       await mysqlConn.execute(`DROP USER '${tempUser}'@'%';`);
       await mysqlConn.end();
-    }
-
-    if (dbType === 'mongo') {
-      const mongoClient = new MongoClient(process.env.MONGO_URI!);
-      await mongoClient.connect();
-      const db = mongoClient.db(process.env.MONGO_DB);
-      await db.removeUser(tempUser);
-      await mongoClient.close();
     }
   }
 }
