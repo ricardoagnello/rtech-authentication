@@ -16,6 +16,7 @@ import { DockerFileModule } from './docker-file/docker-file.module';
 import { DeployModule } from './deploy/deploy.module';
 import { LogsModule } from './logs/logs.module';
 import { DeployService } from './deploy/deploy.service';
+import { DatabaseAuthModule } from './database-auth/database-auth.module';
 
 
 
@@ -38,6 +39,7 @@ import { DeployService } from './deploy/deploy.service';
     DockerFileModule,
     DeployModule,
     LogsModule,
+    DatabaseAuthModule,
     
   ],
   providers: [DockerService, ContainerMonitorService, DeployService],

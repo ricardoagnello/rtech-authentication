@@ -35,7 +35,50 @@ services:
     networks:
       - auth_network
 
-  # Serviço do PgAdmin para gerenciar o banco
+  # Serviço do MySQL
+  mysql:
+    image: mysql:latest
+    container_name: auth_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: auth_db
+      MYSQL_USER: auth_user
+      MYSQL_PASSWORD: auth_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - auth_network
+
+  # Serviço do MongoDB
+  mongo:
+    image: mongo:latest
+    container_name: auth_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - auth_network
+
+  # Serviço do Adminer (Gerenciador de BD para PostgreSQL, MySQL e MongoDB)
+  adminer:
+    image: adminer
+    container_name: auth_adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - auth_network
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres  # O primeiro banco sugerido será o PostgreSQL
+    depends_on:
+      - postgres
+      - mysql
+      - mongo
+
+  # Serviço do PgAdmin para gerenciar o PostgreSQL
   pgadmin:
     image: dpage/pgadmin4
     container_name: auth_pgadmin
@@ -56,3 +99,5 @@ networks:
 
 volumes:
   postgres_data:
+  mysql_data:
+  mongo_data:
