@@ -8,7 +8,6 @@ export class DockerfileService {
   constructor(private readonly stackDetectorService: StackDetectorService) {}
 
   async generateDockerfileForStack(repoPath: string): Promise<void> {
-    // Detecta a stack primeiro pelo Dockerfile, se existir
     let stack: string;
     const dockerfilePath = path.join(repoPath, 'Dockerfile');
 
@@ -23,25 +22,32 @@ export class DockerfileService {
     switch (stack) {
       case 'node':
         dockerfileContent = `
-          FROM node:alpine
+          # syntax=docker/dockerfile:1.4
+          FROM node:alpine AS builder
 
           WORKDIR /app
           COPY package.json package-lock.json ./
-          RUN npm install
+          RUN --mount=type=cache,target=/root/.npm npm ci
 
           COPY . .
+          RUN npm run build
 
+          FROM node:alpine
+          WORKDIR /app
+          COPY --from=builder /app .
+          
           CMD ["npm", "start"]
         `;
         break;
 
       case 'python':
         dockerfileContent = `
-          FROM python:alpine
+          # syntax=docker/dockerfile:1.4
+          FROM python:alpine AS builder
 
           WORKDIR /app
           COPY requirements.txt ./
-          RUN pip install -r requirements.txt
+          RUN --mount=type=cache,target=/root/.cache pip install -r requirements.txt
 
           COPY . .
 
@@ -51,11 +57,12 @@ export class DockerfileService {
 
       case 'ruby':
         dockerfileContent = `
-          FROM ruby:alpine
+          # syntax=docker/dockerfile:1.4
+          FROM ruby:alpine AS builder
 
           WORKDIR /app
           COPY Gemfile Gemfile.lock ./
-          RUN bundle install
+          RUN --mount=type=cache,target=/usr/local/bundle bundle install
 
           COPY . .
 
@@ -65,36 +72,50 @@ export class DockerfileService {
 
       case 'go':
         dockerfileContent = `
-          FROM golang:alpine
+          # syntax=docker/dockerfile:1.4
+          FROM golang:alpine AS builder
 
           WORKDIR /app
           COPY . .
+          RUN --mount=type=cache,target=/go/pkg/mod go build -o app
 
-          RUN go build -o app
-
+          FROM alpine
+          WORKDIR /app
+          COPY --from=builder /app/app .
+          
           CMD ["./app"]
         `;
         break;
 
       case 'dotnet':
         dockerfileContent = `
-          FROM mcr.microsoft.com/dotnet/aspnet:5.0
+          # syntax=docker/dockerfile:1.4
+          FROM mcr.microsoft.com/dotnet/sdk:7.0 AS builder
 
           WORKDIR /app
           COPY . .
+          RUN --mount=type=cache,target=/root/.nuget dotnet publish -c Release -o out
 
-          RUN dotnet publish -c Release -o out
+          FROM mcr.microsoft.com/dotnet/aspnet:7.0
+          WORKDIR /app
+          COPY --from=builder /app/out .
 
-          CMD ["dotnet", "out/app.dll"]
+          CMD ["dotnet", "app.dll"]
         `;
         break;
 
       case 'springboot':
         dockerfileContent = `
-          FROM openjdk:11-jre-slim
+          # syntax=docker/dockerfile:1.4
+          FROM openjdk:17-jdk-slim AS builder
 
           WORKDIR /app
-          COPY target/*.jar app.jar
+          COPY . .
+          RUN --mount=type=cache,target=/root/.m2 mvn clean package -DskipTests
+
+          FROM openjdk:17-jre-slim
+          WORKDIR /app
+          COPY --from=builder /app/target/*.jar app.jar
 
           CMD ["java", "-jar", "app.jar"]
         `;
@@ -102,11 +123,11 @@ export class DockerfileService {
 
       case 'php':
         dockerfileContent = `
-          FROM php:7.4-apache
+          # syntax=docker/dockerfile:1.4
+          FROM php:8.1-apache
 
           WORKDIR /var/www/html
           COPY . .
-
           RUN docker-php-ext-install mysqli pdo pdo_mysql
 
           CMD ["apache2-foreground"]
@@ -117,8 +138,6 @@ export class DockerfileService {
         throw new Error('Stack não suportada ou não identificada.');
     }
 
-    // Grava o Dockerfile no diretório do repositório clonado
     fs.writeFileSync(dockerfilePath, dockerfileContent.trim());
   }
 }
-

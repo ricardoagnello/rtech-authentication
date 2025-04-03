@@ -193,16 +193,28 @@ export class DockerService {
     try {
       const tarStream = tar.pack(repoPath);
 
-      await this.docker.buildImage(tarStream, {
+      const buildOptions = {
         t: imageName,
+        buildargs: { BUILDKIT_INLINE_CACHE: '1' }, // Cache eficiente
+        version: '2' as '1' | '2', // BuildKit requer API Docker 1.40+
+      };
+
+      const stream = await this.docker.buildImage(tarStream, buildOptions);
+      
+      await new Promise((resolve, reject) => {
+        this.docker.modem.followProgress(stream, (err, res) => {
+          if (err) reject(err);
+          else resolve(res);
+        });
       });
 
-      this.logger.log(`Imagem ${imageName} construída com sucesso.`);
+      this.logger.log(`Imagem ${imageName} construída com sucesso usando BuildKit.`);
     } catch (error) {
       this.logger.error(`Erro ao construir a imagem ${imageName}:`, error);
       throw new BadRequestException(`Erro ao construir a imagem.`);
     }
   }
+
 
   async stopContainer(containerName: string) {
     try {
