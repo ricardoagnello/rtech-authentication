@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { ContainerService } from './container-instance.service';
 import { CreateContainerDto } from './dto/create-container.dto';
 import { ContainerResponseDto } from './dto/container-response.dto';
@@ -37,5 +37,11 @@ export class ContainerInstanceController {
   async scaleContainer(@Param('id') containerId: string, @Body('replicas') replicas: number): Promise<void> {
     return this.containerService.scaleContainer(containerId, replicas);
   }
+
+  @Get(':containerId/metrics')
+  async getMetrics(@Req() req, @Param('containerId') containerId: string) {
+  return this.containerService.getContainerMetrics(req.user.id, containerId);
+}
+
 }
 

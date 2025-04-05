@@ -231,6 +231,40 @@ export class DockerService {
     }
   }
 
+  async getContainerStats(containerId: string) {
+    const container = this.docker.getContainer(containerId);
+    
+    const stats = await container.stats({ stream: false });
+    const inspectData = await (container as any).inspect({ size: true });
+  
+    return {
+      cpuUsage: stats.cpu_stats.cpu_usage.total_usage,
+      memoryUsage: stats.memory_stats.usage,
+      diskUsage: inspectData.SizeRw || 0,// uso real de disco em bytes
+    };
+  }
+
+  async collectAndSaveContainerStats(containerId: string) {
+    try {
+      const stats = await this.getContainerStats(containerId);
+
+      await this.prisma.containerMetrics.create({
+        data: {
+          containerId,
+          cpuUsage: Number(stats.cpuUsage),
+          memoryUsage: Number(stats.memoryUsage),
+          diskUsage: Number(stats.diskUsage),
+        },
+      });
+
+      this.logger.log(`Métricas salvas para container ${containerId}`);
+    } catch (err) {
+      this.logger.error(`Erro ao coletar/salvar métricas do container ${containerId}`, err);
+    }
+  }
+  
+  
+
 
 }
 

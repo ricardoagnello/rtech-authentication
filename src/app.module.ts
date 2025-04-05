@@ -17,6 +17,7 @@ import { DeployModule } from './deploy/deploy.module';
 import { LogsModule } from './logs/logs.module';
 import { DeployService } from './deploy/deploy.service';
 import { DatabaseAuthModule } from './database-auth/database-auth.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 
 
@@ -40,6 +41,7 @@ import { DatabaseAuthModule } from './database-auth/database-auth.module';
     DeployModule,
     LogsModule,
     DatabaseAuthModule,
+    MetricsModule,
     
   ],
   providers: [DockerService, ContainerMonitorService, DeployService],

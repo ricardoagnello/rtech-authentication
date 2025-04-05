@@ -10,7 +10,7 @@ export class ContainerMonitorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly dockerService: DockerService,
-  ) {}
+  ) { }
 
   @Cron('*/5 * * * *') // Executa a cada 5 minutos
   async checkAndRestartContainers() {
@@ -34,6 +34,15 @@ export class ContainerMonitorService {
       } catch (error) {
         this.logger.error(`Erro ao reiniciar container ${container.name}:`, error);
       }
+    }
+  }
+
+  @Cron('*/5 * * * *')
+  async collectMetricsFromAllContainers() {
+    const containers = await this.prisma.containerInstance.findMany();
+
+    for (const container of containers) {
+      await this.dockerService.collectAndSaveContainerStats(container.id);
     }
   }
 }

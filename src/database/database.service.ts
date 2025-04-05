@@ -16,7 +16,7 @@ export class DatabaseService {
   async createDatabase(
     userId: string,
     planId: string,
-    dbType: 'mysql' | 'postgresql' | 'mongodb',
+    dbType: 'mysql' | 'postgresql',
   ): Promise<{ message: string; credentials: any }> {
     this.logsGateway.sendLog(userId, `Criando banco de dados do tipo ${dbType}...`);
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
@@ -42,11 +42,6 @@ export class DatabaseService {
         cmd = ['docker-entrypoint.sh', 'postgres'];
         port = 5432;
         image = 'postgres:latest';
-        break;
-      case 'mongodb':
-        cmd = ['mongod', '--bind_ip', '0.0.0.0'];
-        port = 27017;
-        image = 'mongo:latest';
         break;
       default:
         throw new BadRequestException('Tipo de banco de dados inválido.');
@@ -75,16 +70,13 @@ export class DatabaseService {
           dbType,
           host: serviceName, // Nome do serviço, e não localhost
           port,
-          username: dbType === 'mongodb' ? 'admin' : credentials.username,
+          username: credentials.username,
           password: credentials.password,
           dbName: `${userId}_db`,
         },
       });
   
-      const envFileContent =
-        dbType === 'mongodb'
-          ? `MONGO_URI=mongodb://admin:${credentials.password}@${serviceName}:${port}/${userId}_db?authSource=admin`
-          : `DB_HOST=${serviceName}\nDB_PORT=${port}\nDB_USERNAME=${credentials.username}\nDB_PASSWORD=${credentials.password}\nDB_NAME=${userId}_db`;
+      const envFileContent = `DB_HOST=${serviceName}\nDB_PORT=${port}\nDB_USERNAME=${credentials.username}\nDB_PASSWORD=${credentials.password}\nDB_NAME=${userId}_db`;
   
       this.saveEnvFile(envFileContent, userId);
       

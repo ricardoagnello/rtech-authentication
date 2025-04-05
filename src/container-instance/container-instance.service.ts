@@ -164,4 +164,18 @@ export class ContainerService {
       throw new BadRequestException('Erro ao escalar o serviço no Docker Swarm');
     }
   }
+
+  async getContainerMetrics(userId: string, containerId: string) {
+    const container = await this.prisma.containerInstance.findFirst({
+      where: { id: containerId, userId },
+      include: { metrics: true },
+    });
+  
+    if (!container) {
+      throw new NotFoundException('Container não encontrado.');
+    }
+  
+    return container.metrics;
+  }
+  
 }
