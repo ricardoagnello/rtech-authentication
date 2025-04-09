@@ -302,4 +302,28 @@ import {
       
         return { message: 'Email de verificação reenviado com sucesso' };
       }
+
+      async generateSignupToken(email: string): Promise<string> {
+        const user = await this.prisma.user.findUnique({
+          where: { email },
+        });
+        if (!user) {
+          throw new NotFoundException('Usuário não encontrado');
+        }
+        if (user.status !== 'AWAITING_SINGUP') {
+          throw new BadRequestException('Este usuário já completou o cadastro');
+        }
+
+        const token = uuidv4();
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            signupToken: token,
+            signupTokenExpiresAt: expiresAt,
+          }
+        });
+        return token;
+      }
   }

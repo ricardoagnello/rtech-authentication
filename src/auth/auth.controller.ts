@@ -22,10 +22,13 @@ import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { MailService } from 'src/mail/mail.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService,
+    private readonly mailService: MailService,
+  ) { }
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
@@ -103,7 +106,8 @@ async githubAuthCallback(@Req() req: Request) {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    await this.authService.sendPasswordResetEmail(forgotPasswordDto.email);
+    const resetUrl = `https://your-app-url.com/reset-password?email=${forgotPasswordDto.email}`;
+    await this.mailService.sendPasswordResetEmail(forgotPasswordDto.email, resetUrl);
     return { message: 'Email de redefinição de senha enviado com sucesso' };
   }
 
@@ -116,4 +120,10 @@ async githubAuthCallback(@Req() req: Request) {
     );
     return { message: 'Senha redefinida com sucesso' };
   }
+
+  @Post('signup-token')
+async requestSignupToken(@Body('email') email: string) {
+  const token = await this.authService.generateSignupToken(email);
+  return { token };
+}
 }

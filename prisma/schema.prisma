@@ -47,6 +47,8 @@ model User {
   containerInstances ContainerInstance[]
   databases    Database[]
   deployments Deployment[]
+  signupToken String?
+  signupTokenExpiresAt DateTime?
 }
 
 model RefreshToken {
