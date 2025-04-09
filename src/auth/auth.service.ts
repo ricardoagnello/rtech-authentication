@@ -53,6 +53,7 @@ import {
             isVerified: false,
             verificationToken,
             verificationTokenExpiresAt,
+            status: 'AWAITING_SINGUP',
           },
         });
       

@@ -3,8 +3,10 @@ import { PlanService } from './plan.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ApiKeyGuard } from 'src/auth/guards/api-key.guard';
 
 @Controller('plans')
+@UseGuards(ApiKeyGuard)
 export class PlanController {
   constructor(private readonly plansService: PlanService) {}
 

@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "UserStatus" AS ENUM ('TRIAL', 'PAID', 'AWAITING_SINGUP', 'EXPIRED', 'BLOCKED');
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "status" "UserStatus" NOT NULL DEFAULT 'AWAITING_SINGUP';

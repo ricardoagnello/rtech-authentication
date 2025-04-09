@@ -13,6 +13,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserStatus {
+  TRIAL 
+  PAID 
+  AWAITING_SINGUP
+  EXPIRED
+  BLOCKED
+}
+
 enum Role {
   USER
   ADMIN
@@ -23,6 +31,7 @@ model User {
   email        String    @unique
   password     String
   name         String
+  status       UserStatus @default(AWAITING_SINGUP)
   roles        Role[]    @default([USER])
   verificationToken   String?
   verificationTokenExpiresAt DateTime?
